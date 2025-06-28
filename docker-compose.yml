@@ -10,22 +10,59 @@ services:
       - "5440:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - triage-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: triage-ai-redis
+    command: redis-server --appendonly yes --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - triage-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
 
   app:
     build: .
     container_name: triage-ai-app
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis123
       GEMINI_API_KEY: ${GEMINI_API_KEY}
     ports:
       - "8080:8080"
     volumes:
       - ./logs:/app/logs
+    networks:
+      - triage-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
+
+networks:
+  triage-network:
+    driver: bridge

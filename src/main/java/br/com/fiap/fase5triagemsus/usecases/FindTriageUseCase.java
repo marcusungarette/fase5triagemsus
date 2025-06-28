@@ -83,6 +83,16 @@ public class FindTriageUseCase {
         return pendingTriages;
     }
 
+    @Transactional(readOnly = true)
+    public List<Triage> findPendingTriagesByStatus() {
+        //log.debug("Buscando triagens pendentes por status");
+
+        List<Triage> pendingTriagesByStatus = triageRepository.findPendingTriagesByStatus();
+        //log.debug("Encontradas {} triagens pendentes por status", pendingTriages.size());
+
+        return pendingTriagesByStatus;
+    }
+
 
     @Transactional(readOnly = true)
     public List<Triage> findByDate(LocalDate date) {
@@ -162,6 +172,8 @@ public class FindTriageUseCase {
                 pending
         );
     }
+
+
 
 
     public record TriageStatistics(

@@ -1,8 +1,8 @@
 package br.com.fiap.fase5triagemsus.infrastructure.config.persistence.entities;
 
-
 import br.com.fiap.fase5triagemsus.domain.entities.Triage;
 import br.com.fiap.fase5triagemsus.domain.enums.PriorityLevel;
+import br.com.fiap.fase5triagemsus.domain.enums.TriageStatus;
 import br.com.fiap.fase5triagemsus.domain.valueobjects.PatientId;
 import br.com.fiap.fase5triagemsus.domain.valueobjects.Symptom;
 import br.com.fiap.fase5triagemsus.domain.valueobjects.TriageId;
@@ -18,13 +18,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 
-
 @Entity
 @Table(name = "triages", indexes = {
         @Index(name = "idx_triage_patient_id", columnList = "patient_id"),
         @Index(name = "idx_triage_priority", columnList = "priority"),
         @Index(name = "idx_triage_processed", columnList = "processed"),
-        @Index(name = "idx_triage_created_at", columnList = "created_at")
+        @Index(name = "idx_triage_status", columnList = "status"), // Novo índice
+        @Index(name = "idx_triage_created_at", columnList = "created_at"),
+        @Index(name = "idx_triage_retry_count", columnList = "retry_count") // Novo índice
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -63,6 +64,28 @@ public class TriageJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private TriageStatus status;
+
+    @Column(name = "processing_started_at")
+    private LocalDateTime processingStartedAt;
+
+    @Column(name = "processing_completed_at")
+    private LocalDateTime processingCompletedAt;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount;
+
+    @Column(name = "confidence_score")
+    private Double confidenceScore;
+
+    @Column(name = "raw_ai_response", columnDefinition = "TEXT")
+    private String rawAiResponse;
+
 
     public static TriageJpaEntity fromDomain(Triage triage) {
         return new TriageJpaEntity(
@@ -74,13 +97,19 @@ public class TriageJpaEntity {
                 triage.getObservations(),
                 triage.getProcessed(),
                 triage.getCreatedAt(),
-                triage.getUpdatedAt()
+                triage.getUpdatedAt(),
+                triage.getStatus() != null ? triage.getStatus() : TriageStatus.PENDING,
+                triage.getProcessingStartedAt(),
+                triage.getProcessingCompletedAt(),
+                triage.getErrorMessage(),
+                triage.getRetryCount() != null ? triage.getRetryCount() : 0,
+                triage.getConfidenceScore(),
+                triage.getRawAiResponse()
         );
     }
 
-
     public Triage toDomain() {
-        return Triage.restore(
+        return Triage.restoreWithStatus(
                 TriageId.of(this.id),
                 PatientId.of(this.patientId),
                 this.symptoms,
@@ -89,10 +118,16 @@ public class TriageJpaEntity {
                 this.observations,
                 this.createdAt,
                 this.updatedAt,
-                this.processed
+                this.processed,
+                this.status,
+                this.processingStartedAt,
+                this.processingCompletedAt,
+                this.errorMessage,
+                this.retryCount,
+                this.confidenceScore,
+                this.rawAiResponse
         );
     }
-
 
     public void updateFromDomain(Triage triage) {
         this.symptoms = triage.getSymptoms();
@@ -100,6 +135,13 @@ public class TriageJpaEntity {
         this.aiRecommendation = triage.getAiRecommendation();
         this.observations = triage.getObservations();
         this.processed = triage.getProcessed();
+        this.status = triage.getStatus() != null ? triage.getStatus() : TriageStatus.PENDING;
+        this.processingStartedAt = triage.getProcessingStartedAt();
+        this.processingCompletedAt = triage.getProcessingCompletedAt();
+        this.errorMessage = triage.getErrorMessage();
+        this.retryCount = triage.getRetryCount() != null ? triage.getRetryCount() : 0;
+        this.confidenceScore = triage.getConfidenceScore();
+        this.rawAiResponse = triage.getRawAiResponse();
         // updatedAt será atualizado automaticamente pelo @UpdateTimestamp
     }
 }

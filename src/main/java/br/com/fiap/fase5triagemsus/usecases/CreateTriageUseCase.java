@@ -1,20 +1,21 @@
 package br.com.fiap.fase5triagemsus.usecases;
 
-
 import br.com.fiap.fase5triagemsus.domain.entities.Patient;
 import br.com.fiap.fase5triagemsus.domain.entities.Triage;
 import br.com.fiap.fase5triagemsus.domain.repositories.PatientRepository;
 import br.com.fiap.fase5triagemsus.domain.repositories.TriageRepository;
-import br.com.fiap.fase5triagemsus.domain.services.AITriageService;
 import br.com.fiap.fase5triagemsus.domain.valueobjects.PatientId;
+import br.com.fiap.fase5triagemsus.domain.valueobjects.QueueMessage;
 import br.com.fiap.fase5triagemsus.domain.valueobjects.Symptom;
+import br.com.fiap.fase5triagemsus.infrastructure.config.QueueConfig;
+import br.com.fiap.fase5triagemsus.infrastructure.services.queue.QueueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
-
 
 @Slf4j
 @Service
@@ -23,12 +24,10 @@ public class CreateTriageUseCase {
 
     private final TriageRepository triageRepository;
     private final PatientRepository patientRepository;
-    private final AITriageService aiTriageService;
+    private final QueueService queueService;
 
     @Transactional
     public Triage execute(CreateTriageCommand command) {
-        //log.info("Iniciando criação de triagem para paciente ID: {}", command.patientId());
-
         PatientId patientId = PatientId.of(command.patientId());
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new PatientNotFoundException("Paciente não encontrado: " + command.patientId()));
@@ -42,29 +41,26 @@ public class CreateTriageUseCase {
                 .toList();
 
         Triage triage = Triage.create(patientId, symptoms);
-
         Triage savedTriage = triageRepository.save(triage);
-        //log.debug("Triagem criada com ID: {}", savedTriage.getId().getValue());
 
-        try {
-            //log.debug("Iniciando análise de IA para triagem: {}", savedTriage.getId().getValue());
-            AITriageService.TriageAnalysisResult analysisResult = aiTriageService.analyzeTriageSituation(savedTriage, patient);
+        QueueMessage queueMessage = QueueMessage.builder()
+                .triageId(savedTriage.getId().getValue())
+                .patientId(savedTriage.getPatientId().getValue())
+                .symptoms(symptoms.stream().map(Symptom::getDescription).toList())
+                .patientAge(patient.getAge())
+                .createdAt(LocalDateTime.now())
+                .priority(savedTriage.isUrgent() ? 1 : 3)
+                .retryCount(0)
+                .build();
 
-            savedTriage.processWithAI(analysisResult.priority(), analysisResult.recommendation());
-
-            savedTriage = triageRepository.save(savedTriage);
-
-            //log.info("Triagem processada com sucesso. ID: {}, Prioridade: {}",
-                    //savedTriage.getId().getValue(), savedTriage.getPriority());
-
-        } catch (Exception e) {
-            //log.error("Erro ao processar triagem com IA: {}", e.getMessage(), e);
-            throw new TriageProcessingException("Erro ao processar triagem: " + e.getMessage(), e);
+        if (savedTriage.isUrgent()) {
+            queueService.sendToPriorityQueue(queueMessage);
+        } else {
+            queueService.sendToQueue(QueueConfig.TRIAGE_QUEUE, queueMessage);
         }
 
         return savedTriage;
     }
-
 
     public record CreateTriageCommand(
             String patientId,
@@ -83,7 +79,6 @@ public class CreateTriageUseCase {
         }
     }
 
-
     public record SymptomDto(
             String description,
             Integer intensity,
@@ -99,16 +94,9 @@ public class CreateTriageUseCase {
         }
     }
 
-
     public static class PatientNotFoundException extends RuntimeException {
         public PatientNotFoundException(String message) {
             super(message);
-        }
-    }
-
-    public static class TriageProcessingException extends RuntimeException {
-        public TriageProcessingException(String message, Throwable cause) {
-            super(message, cause);
         }
     }
 }
