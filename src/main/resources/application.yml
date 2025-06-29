@@ -18,17 +18,20 @@ spring:
         format_sql: true
         use_sql_comments: true
 
-  redis:
-    host: localhost
-    port: 6379
-    password: redis123
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123
+      timeout: 2000ms
+      database: 0
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
   jackson:
     time-zone: America/Sao_Paulo
@@ -46,6 +49,8 @@ logging:
     br.com.fiap: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
+    org.springframework.data.redis: DEBUG
+    io.lettuce.core: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
@@ -69,7 +74,7 @@ springdoc:
     enabled: true
     operationsSorter: method
     tagsSorter: alpha
-  show-actuator: true
+  show-actuator: false
 
 triage:
   ai:
@@ -105,11 +110,23 @@ spring:
 
   datasource:
     url: jdbc:postgresql://postgres:5432/postgres
+    username: postgres
+    password: postgres
 
-  redis:
-    host: redis
-    port: 6379
-    password: redis123
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: redis123
+      timeout: 2000ms
+      database: 0
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
 ---
 spring:
@@ -122,7 +139,8 @@ spring:
       ddl-auto: create-drop
     show-sql: true
 
-  redis:
-    host: localhost
-    port: 6370
-    password:
+  data:
+    redis:
+      host: localhost
+      port: 6370
+      password: ""

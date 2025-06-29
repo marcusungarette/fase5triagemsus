@@ -25,8 +25,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        log.info("Iniciando consumers de triagem...");
-
         for (int i = 0; i < queueProperties.getConsumerThreads(); i++) {
             startConsumer("consumer-" + i);
         }
@@ -34,8 +32,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
 
     @Async("queueConsumerExecutor")
     public void startConsumer(String consumerName) {
-        log.info("Iniciando consumer: {}", consumerName);
-
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 processNextBatch(consumerName);
@@ -44,7 +40,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                log.error("Erro no consumer {}: {}", consumerName, e.getMessage(), e);
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException ie) {
@@ -53,8 +48,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
                 }
             }
         }
-
-        log.info("Consumer {} parado", consumerName);
     }
 
     private void processNextBatch(String consumerName) {
@@ -74,8 +67,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
                 .toList();
 
         if (!allMessages.isEmpty()) {
-            log.debug("Consumer {} processando {} mensagens", consumerName, allMessages.size());
-
             List<CompletableFuture<Void>> futures = allMessages.stream()
                     .map(this::processMessageAsync)
                     .toList();
@@ -113,7 +104,6 @@ public class TriageQueueConsumer implements CommandLineRunner {
             }
 
         } catch (Exception e) {
-            log.error("Erro crítico no processamento: {}", e.getMessage(), e);
             queueService.markAsFailed(message, "Erro crítico: " + e.getMessage());
             queueService.nackMessage(QueueConfig.TRIAGE_QUEUE, message);
         }

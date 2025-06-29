@@ -55,8 +55,6 @@ public class ProcessTriageUseCase {
             return ProcessingResult.success(triage);
 
         } catch (Exception e) {
-            log.error("Erro ao processar triagem {}: {}", triageId.getValue(), e.getMessage(), e);
-
             triage = triage.withError("Erro no processamento: " + e.getMessage());
             triageRepository.save(triage);
 

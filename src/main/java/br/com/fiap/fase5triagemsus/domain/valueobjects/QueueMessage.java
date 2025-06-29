@@ -4,13 +4,14 @@ import lombok.Value;
 import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-
 @Value
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true) // ← ADICIONAR ESTA ANOTAÇÃO
 public class QueueMessage {
 
     @JsonProperty("triageId")
@@ -47,7 +48,6 @@ public class QueueMessage {
 
     @JsonProperty("lastRetryAt")
     LocalDateTime lastRetryAt;
-
 
     @JsonCreator
     public QueueMessage(

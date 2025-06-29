@@ -40,31 +40,15 @@ public class GeminiAITriageService implements AITriageService {
 
     @Override
     public TriageAnalysisResult analyzeTriageSituation(Triage triage, Patient patient) {
-        //log.info("Iniciando análise de triagem com Gemini. Triagem ID: {}", triage.getId().getValue());
-
         try {
-            // 1. Construir prompt
             String prompt = promptBuilder.buildTriagePrompt(triage, patient);
-            //log.debug("Prompt construído para triagem: {}", triage.getId().getValue());
-
-            // 2. Preparar requisição
             GeminiRequestDto.Request request = buildGeminiRequest(prompt);
-
-            // 3. Chamar API Gemini
             GeminiResponseDto.Response response = callGeminiAPI(request);
-
-            // 4. Processar resposta
             TriageAnalysisResult result = processGeminiResponse(response);
-
-            //log.info("Análise concluída. Triagem: {}, Prioridade: {}, Confiança: {}",
-                    //triage.getId().getValue(), result.priority(), result.confidenceScore());
 
             return result;
 
         } catch (Exception e) {
-            //log.error("Erro ao analisar triagem com Gemini: {}", e.getMessage(), e);
-
-            // Fallback: classificação conservadora baseada em sintomas
             return createFallbackAnalysis(triage, patient, e);
         }
     }
@@ -105,9 +89,6 @@ public class GeminiAITriageService implements AITriageService {
                 .timeout(geminiProperties.getTimeout())
                 .retryWhen(Retry.backoff(geminiProperties.getMaxRetries(), Duration.ofSeconds(1))
                         .filter(this::isRetryableError))
-                //.doOnSubscribe(s -> log.info("Enviando requisição para Gemini API"))
-                //.doOnSuccess(r -> log.info("✅ Resposta recebida da Gemini API"))
-                //.doOnError(e -> log.error("❌ Erro na chamada da Gemini API: {}", e.getMessage()))
                 .block();
     }
 
@@ -123,7 +104,6 @@ public class GeminiAITriageService implements AITriageService {
         }
 
         String responseText = candidate.content().parts().get(0).text();
-        //log.debug("Resposta da IA: {}", responseText);
 
         return parseTriageResponse(responseText);
     }
@@ -131,7 +111,6 @@ public class GeminiAITriageService implements AITriageService {
 
     private TriageAnalysisResult parseTriageResponse(String responseText) {
         try {
-            // Extrair JSON da resposta (pode vir com texto adicional)
             String jsonText = extractJsonFromResponse(responseText);
 
             JsonNode jsonNode = objectMapper.readTree(jsonText);
@@ -146,10 +125,8 @@ public class GeminiAITriageService implements AITriageService {
             return new TriageAnalysisResult(priority, recommendation, reasoning, confidence);
 
         } catch (JsonProcessingException e) {
-            //log.error("Erro ao fazer parse da resposta JSON: {}", responseText, e);
             throw new AIAnalysisException("Erro ao processar resposta da IA: " + e.getMessage());
         } catch (IllegalArgumentException e) {
-            //log.error("Prioridade inválida na resposta: {}", responseText, e);
             throw new AIAnalysisException("Prioridade inválida retornada pela IA");
         }
     }
@@ -168,9 +145,6 @@ public class GeminiAITriageService implements AITriageService {
 
 
     private TriageAnalysisResult createFallbackAnalysis(Triage triage, Patient patient, Exception originalError) {
-        //log.warn("Criando análise de fallback para triagem: {}", triage.getId().getValue());
-
-        // Lógica conservadora baseada em sintomas graves
         PriorityLevel fallbackPriority = determineFallbackPriority(triage, patient);
 
         String recommendation = String.format(
@@ -189,45 +163,31 @@ public class GeminiAITriageService implements AITriageService {
         return new TriageAnalysisResult(fallbackPriority, recommendation, reasoning, 0.5);
     }
 
-    /**
-     * Determina prioridade de fallback baseada em regras simples
-     */
     private PriorityLevel determineFallbackPriority(Triage triage, Patient patient) {
-        // Se tem sintomas graves, classificar como urgente
         if (triage.countSevereSymptoms() > 0) {
             return patient.isElderly() || patient.isChild() ? PriorityLevel.VERY_URGENT : PriorityLevel.URGENT;
         }
 
-        // Se tem muitos sintomas moderados
         if (triage.countModerateSymptoms() >= 3) {
             return PriorityLevel.URGENT;
         }
 
-        // Caso padrão: pouco urgente
         return PriorityLevel.LESS_URGENT;
     }
 
-    /**
-     * Verifica se o erro é passível de retry
-     */
     private boolean isRetryableError(Throwable throwable) {
         if (throwable instanceof WebClientResponseException responseException) {
             int statusCode = responseException.getStatusCode().value();
-            // Retry em erros 5xx (server) e 429 (rate limit)
             return statusCode >= 500 || statusCode == 429;
         }
 
         if (throwable instanceof WebClientException) {
-            // Retry em erros de timeout ou conectividade
             return true;
         }
 
         return false;
     }
 
-    /**
-     * Exceção específica para erros de análise de IA
-     */
     public static class AIAnalysisException extends RuntimeException {
         public AIAnalysisException(String message) {
             super(message);

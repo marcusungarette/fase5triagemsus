@@ -11,7 +11,7 @@ import java.time.Period;
 
 
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // Para JPA
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Patient {
 
     private PatientId id;

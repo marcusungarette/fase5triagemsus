@@ -2,6 +2,7 @@ package br.com.fiap.fase5triagemsus.infrastructure.services.queue;
 
 import br.com.fiap.fase5triagemsus.domain.valueobjects.QueueMessage;
 import br.com.fiap.fase5triagemsus.infrastructure.config.QueueConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,16 +20,15 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class RedisQueueService implements QueueService {
 
-    private final RedisTemplate<String, QueueMessage> queueRedisTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void sendToQueue(String queueName, QueueMessage message) {
         try {
-            queueRedisTemplate.opsForList().leftPush(queueName, message);
-            log.debug("Mensagem enviada para fila {}: {}", queueName, message.getTriageId());
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            redisTemplate.opsForList().leftPush(queueName, jsonMessage);
         } catch (Exception e) {
-            log.error("Erro ao enviar mensagem para fila {}: {}", queueName, e.getMessage(), e);
             throw new QueueException("Erro ao enviar mensagem para fila", e);
         }
     }
@@ -37,7 +37,8 @@ public class RedisQueueService implements QueueService {
     public void sendToQueue(String queueName, QueueMessage message, Duration delay) {
         try {
             String delayedKey = queueName + ":delayed:" + System.currentTimeMillis();
-            queueRedisTemplate.opsForValue().set(delayedKey, message, delay);
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            redisTemplate.opsForValue().set(delayedKey, jsonMessage, delay);
 
             String script = """
                 local delayedKey = KEYS[1]
@@ -53,10 +54,7 @@ public class RedisQueueService implements QueueService {
 
             redisTemplate.execute(new DefaultRedisScript<>(script, Long.class),
                     List.of(delayedKey, queueName));
-
-            log.debug("Mensagem agendada para fila {} com delay {}: {}", queueName, delay, message.getTriageId());
         } catch (Exception e) {
-            log.error("Erro ao agendar mensagem: {}", e.getMessage(), e);
             throw new QueueException("Erro ao agendar mensagem", e);
         }
     }
@@ -65,10 +63,9 @@ public class RedisQueueService implements QueueService {
     public void sendToPriorityQueue(QueueMessage message) {
         double score = calculatePriorityScore(message);
         try {
-            queueRedisTemplate.opsForZSet().add(QueueConfig.TRIAGE_PRIORITY_QUEUE, message, score);
-            log.debug("Mensagem enviada para fila prioritária com score {}: {}", score, message.getTriageId());
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            redisTemplate.opsForZSet().add(QueueConfig.TRIAGE_PRIORITY_QUEUE, jsonMessage, score);
         } catch (Exception e) {
-            log.error("Erro ao enviar para fila prioritária: {}", e.getMessage(), e);
             throw new QueueException("Erro ao enviar para fila prioritária", e);
         }
     }
@@ -84,12 +81,10 @@ public class RedisQueueService implements QueueService {
         try {
             String dlqEntry = String.format("%s:%s:%s",
                     message.getTriageId(), LocalDateTime.now(), reason);
-            queueRedisTemplate.opsForList().leftPush(QueueConfig.TRIAGE_DLQ, message);
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            redisTemplate.opsForList().leftPush(QueueConfig.TRIAGE_DLQ, jsonMessage);
             redisTemplate.opsForSet().add(QueueConfig.TRIAGE_DLQ + ":reasons", dlqEntry);
-
-            log.warn("Mensagem enviada para DLQ: {} - Motivo: {}", message.getTriageId(), reason);
         } catch (Exception e) {
-            log.error("Erro ao enviar para DLQ: {}", e.getMessage(), e);
             throw new QueueException("Erro ao enviar para DLQ", e);
         }
     }
@@ -97,13 +92,13 @@ public class RedisQueueService implements QueueService {
     @Override
     public Optional<QueueMessage> receiveFromQueue(String queueName) {
         try {
-            QueueMessage message = queueRedisTemplate.opsForList().rightPop(queueName);
-            if (message != null) {
-                log.debug("Mensagem recebida da fila {}: {}", queueName, message.getTriageId());
+            Object rawMessage = redisTemplate.opsForList().rightPop(queueName);
+            if (rawMessage != null) {
+                QueueMessage message = deserializeMessage(rawMessage);
+                return Optional.of(message);
             }
-            return Optional.ofNullable(message);
+            return Optional.empty();
         } catch (Exception e) {
-            log.error("Erro ao receber mensagem da fila {}: {}", queueName, e.getMessage(), e);
             return Optional.empty();
         }
     }
@@ -111,14 +106,14 @@ public class RedisQueueService implements QueueService {
     @Override
     public Optional<QueueMessage> receiveFromQueue(String queueName, Duration timeout) {
         try {
-            QueueMessage message = queueRedisTemplate.opsForList()
+            Object rawMessage = redisTemplate.opsForList()
                     .rightPop(queueName, timeout.getSeconds(), TimeUnit.SECONDS);
-            if (message != null) {
-                log.debug("Mensagem recebida da fila {} com timeout: {}", queueName, message.getTriageId());
+            if (rawMessage != null) {
+                QueueMessage message = deserializeMessage(rawMessage);
+                return Optional.of(message);
             }
-            return Optional.ofNullable(message);
+            return Optional.empty();
         } catch (Exception e) {
-            log.error("Erro ao receber mensagem com timeout da fila {}: {}", queueName, e.getMessage(), e);
             return Optional.empty();
         }
     }
@@ -126,12 +121,31 @@ public class RedisQueueService implements QueueService {
     @Override
     public List<QueueMessage> receiveMultipleFromQueue(String queueName, int count) {
         try {
-            List<QueueMessage> messages = queueRedisTemplate.opsForList().rightPop(queueName, count);
-            log.debug("Recebidas {} mensagens da fila {}", messages != null ? messages.size() : 0, queueName);
-            return messages != null ? messages : List.of();
-        } catch (Exception e) {
-            log.error("Erro ao receber múltiplas mensagens: {}", e.getMessage(), e);
+            List<Object> rawMessages = redisTemplate.opsForList().rightPop(queueName, count);
+            if (rawMessages != null && !rawMessages.isEmpty()) {
+                List<QueueMessage> messages = rawMessages.stream()
+                        .map(this::deserializeMessage)
+                        .toList();
+                return messages;
+            }
             return List.of();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private QueueMessage deserializeMessage(Object rawMessage) {
+        try {
+            if (rawMessage instanceof String jsonString) {
+                return objectMapper.readValue(jsonString, QueueMessage.class);
+            } else if (rawMessage instanceof QueueMessage queueMessage) {
+                return queueMessage;
+            } else {
+                String jsonString = objectMapper.writeValueAsString(rawMessage);
+                return objectMapper.readValue(jsonString, QueueMessage.class);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erro na deserialização", e);
         }
     }
 
@@ -199,7 +213,7 @@ public class RedisQueueService implements QueueService {
     @Override
     public long getQueueSize(String queueName) {
         try {
-            Long size = queueRedisTemplate.opsForList().size(queueName);
+            Long size = redisTemplate.opsForList().size(queueName);
             return size != null ? size : 0;
         } catch (Exception e) {
             log.error("Erro ao obter tamanho da fila {}: {}", queueName, e.getMessage(), e);

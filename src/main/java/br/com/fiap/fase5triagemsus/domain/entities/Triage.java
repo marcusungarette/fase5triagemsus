@@ -27,8 +27,6 @@ public class Triage {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Boolean processed;
-
-    // ========== NOVOS CAMPOS PARA PROCESSAMENTO ASSÍNCRONO ==========
     private TriageStatus status;
     private LocalDateTime processingStartedAt;
     private LocalDateTime processingCompletedAt;
@@ -52,8 +50,6 @@ public class Triage {
         this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
         this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
         this.processed = processed != null ? processed : false;
-
-        // Novos campos
         this.status = status != null ? status : TriageStatus.PENDING;
         this.processingStartedAt = processingStartedAt;
         this.processingCompletedAt = processingCompletedAt;
@@ -62,8 +58,6 @@ public class Triage {
         this.confidenceScore = confidenceScore;
         this.rawAiResponse = rawAiResponse;
     }
-
-    // ========== MÉTODOS DE FÁBRICA ==========
 
     public static Triage create(PatientId patientId, List<Symptom> symptoms) {
         LocalDateTime now = LocalDateTime.now();
@@ -104,8 +98,6 @@ public class Triage {
                 createdAt, updatedAt, processed, status, processingStartedAt, processingCompletedAt,
                 errorMessage, retryCount, confidenceScore, rawAiResponse);
     }
-
-    // ========== MÉTODOS DE ATUALIZAÇÃO (RETORNAM NOVAS INSTÂNCIAS) ==========
 
     public Triage withStatus(TriageStatus newStatus) {
         LocalDateTime now = LocalDateTime.now();
@@ -162,7 +154,6 @@ public class Triage {
         );
     }
 
-    // ========== MÉTODOS EXISTENTES (MANTIDOS PARA COMPATIBILIDADE) ==========
 
     public void processWithAI(PriorityLevel priority, String recommendation) {
         if (this.status != TriageStatus.PENDING && this.status != TriageStatus.PROCESSING) {
@@ -182,7 +173,6 @@ public class Triage {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // ========== MÉTODOS DE CONSULTA ==========
 
     public List<Symptom> getSymptoms() {
         return Collections.unmodifiableList(symptoms);
@@ -220,7 +210,6 @@ public class Triage {
         return java.time.Duration.between(createdAt, LocalDateTime.now()).toMinutes();
     }
 
-    // ========== NOVAS REGRAS DE NEGÓCIO PARA PROCESSAMENTO ASSÍNCRONO ==========
 
     public boolean canBeCancelled() {
         return this.status.isCancellable();
@@ -243,7 +232,6 @@ public class Triage {
         }
 
         if (this.status == TriageStatus.PROCESSING && this.processingStartedAt != null) {
-            // Considera que precisa atenção se está processando há mais de 10 minutos
             return this.processingStartedAt.isBefore(LocalDateTime.now().minusMinutes(10));
         }
 
@@ -266,7 +254,6 @@ public class Triage {
             return false;
         }
 
-        // Lista de sintomas que indicam urgência
         List<String> urgentSymptoms = List.of(
                 "dor no peito", "dificuldade para respirar", "perda de consciência",
                 "sangramento severo", "dor abdominal intensa", "febre alta",
@@ -277,8 +264,6 @@ public class Triage {
                 .anyMatch(symptom -> urgentSymptoms.stream()
                         .anyMatch(urgent -> symptom.getDescription().toLowerCase().contains(urgent.toLowerCase())));
     }
-
-    // ========== MÉTODOS DE VALIDAÇÃO ==========
 
     private TriageId validateId(TriageId id) {
         if (id == null) {

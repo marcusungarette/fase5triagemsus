@@ -33,6 +33,7 @@ public class OpenApiConfig {
                     - PostgreSQL para persistência
                     - Google Gemini 1.5 Pro para análise de IA
                     - Docker para conteinerização
+                    - Redis para processamento assíncrono e mensageria
                     
                     ## Níveis de Prioridade
                     1. **EMERGENCY** (Vermelho) - Atendimento imediato
