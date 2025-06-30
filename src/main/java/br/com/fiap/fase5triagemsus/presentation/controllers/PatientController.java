@@ -42,9 +42,6 @@ public class PatientController {
     public ResponseEntity<ApiResponseDto<PatientResponseDto>> createPatient(
             @Valid @RequestBody PatientRequestDto request,
             HttpServletRequest httpRequest) {
-
-        //log.info("Recebida requisição para criar paciente: {}", request.getName());
-
         try {
             CreatePatientUseCase.CreatePatientCommand command = new CreatePatientUseCase.CreatePatientCommand(
                     request.getName(),
@@ -66,8 +63,6 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
         } catch (CreatePatientUseCase.PatientAlreadyExistsException e) {
-            //log.warn("Tentativa de criar paciente já existente: {}", e.getMessage());
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     e.getMessage(),
                     HttpStatus.CONFLICT,
@@ -77,8 +72,6 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
 
         } catch (IllegalArgumentException e) {
-            //log.warn("Dados inválidos para criação de paciente: {}", e.getMessage());
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     e.getMessage(),
                     HttpStatus.BAD_REQUEST,
@@ -88,8 +81,6 @@ public class PatientController {
             return ResponseEntity.badRequest().body(response);
 
         } catch (Exception e) {
-            //log.error("Erro interno ao criar paciente", e);
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     "Erro interno do servidor",
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -110,8 +101,6 @@ public class PatientController {
             @Parameter(description = "ID do paciente") @PathVariable String id,
             HttpServletRequest httpRequest) {
 
-        //log.info("Buscando paciente por ID: {}", id);
-
         try {
             Patient patient = findPatientUseCase.findById(id);
             PatientResponseDto responseDto = PatientResponseDto.fromDomain(patient);
@@ -124,8 +113,6 @@ public class PatientController {
             return ResponseEntity.ok(response);
 
         } catch (FindPatientUseCase.PatientNotFoundException e) {
-            //log.warn("Paciente não encontrado: {}", e.getMessage());
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     e.getMessage(),
                     HttpStatus.NOT_FOUND,
@@ -135,8 +122,6 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 
         } catch (Exception e) {
-            //log.error("Erro interno ao buscar paciente por ID: {}", id, e);
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     "Erro interno do servidor",
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -156,9 +141,6 @@ public class PatientController {
     public ResponseEntity<ApiResponseDto<PatientResponseDto>> getPatientByCpf(
             @Parameter(description = "CPF do paciente") @PathVariable String cpf,
             HttpServletRequest httpRequest) {
-
-        //log.info("Buscando paciente por CPF");
-
         try {
             Patient patient = findPatientUseCase.findByCpf(cpf);
             PatientResponseDto responseDto = PatientResponseDto.fromDomain(patient);
@@ -167,12 +149,9 @@ public class PatientController {
                     responseDto,
                     "Paciente encontrado"
             );
-
             return ResponseEntity.ok(response);
 
         } catch (FindPatientUseCase.PatientNotFoundException e) {
-            //log.warn("Paciente não encontrado por CPF");
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     "Paciente não encontrado",
                     HttpStatus.NOT_FOUND,
@@ -182,8 +161,6 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 
         } catch (Exception e) {
-            //log.error("Erro interno ao buscar paciente por CPF", e);
-
             ApiResponseDto<PatientResponseDto> response = ApiResponseDto.error(
                     "Erro interno do servidor",
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -198,9 +175,6 @@ public class PatientController {
     @Operation(summary = "Verificar existência por CPF", description = "Verifica se existe paciente com o CPF informado")
     public ResponseEntity<ApiResponseDto<Boolean>> checkPatientExistsByCpf(
             @Parameter(description = "CPF do paciente") @PathVariable String cpf) {
-
-        //log.info("Verificando existência de paciente por CPF");
-
         try {
             boolean exists = findPatientUseCase.existsByCpf(cpf);
 
@@ -212,8 +186,6 @@ public class PatientController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            //log.error("Erro ao verificar existência por CPF", e);
-
             ApiResponseDto<Boolean> response = ApiResponseDto.error(
                     "Erro interno do servidor",
                     HttpStatus.INTERNAL_SERVER_ERROR,

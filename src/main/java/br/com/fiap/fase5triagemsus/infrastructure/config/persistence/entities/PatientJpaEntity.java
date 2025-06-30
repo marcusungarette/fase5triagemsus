@@ -63,8 +63,8 @@ public class PatientJpaEntity {
                 patient.getGender(),
                 patient.getPhone(),
                 patient.getEmail(),
-                null, // createdAt será preenchido automaticamente
-                null  // updatedAt será preenchido automaticamente
+                null,
+                null
         );
     }
 

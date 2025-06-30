@@ -21,8 +21,6 @@ public class CreatePatientUseCase {
 
     @Transactional
     public Patient execute(CreatePatientCommand command) {
-        //log.info("Iniciando criação de paciente com CPF: {}", maskCpf(command.cpf()));
-
         if (patientRepository.existsByCpf(command.cpf())) {
             throw new PatientAlreadyExistsException("Paciente com CPF " + maskCpf(command.cpf()) + " já existe");
         }
@@ -37,8 +35,6 @@ public class CreatePatientUseCase {
         );
 
         Patient savedPatient = patientRepository.save(patient);
-
-        //log.info("Paciente criado com sucesso. ID: {}", savedPatient.getId().getValue());
 
         return savedPatient;
     }

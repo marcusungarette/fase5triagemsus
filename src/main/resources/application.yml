@@ -18,6 +18,21 @@ spring:
         format_sql: true
         use_sql_comments: true
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123
+      timeout: 2000ms
+      database: 0
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
   jackson:
     time-zone: America/Sao_Paulo
     date-format: yyyy-MM-dd'T'HH:mm:ss
@@ -34,6 +49,8 @@ logging:
     br.com.fiap: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
+    org.springframework.data.redis: DEBUG
+    io.lettuce.core: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
@@ -44,7 +61,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,redis
   endpoint:
     health:
       show-details: always
@@ -57,7 +74,7 @@ springdoc:
     enabled: true
     operationsSorter: method
     tagsSorter: alpha
-  show-actuator: true
+  show-actuator: false
 
 triage:
   ai:
@@ -77,6 +94,14 @@ triage:
     max-age: 120
     max-processing-time-seconds: 60
 
+  queue:
+    max-retries: 3
+    retry-delay-seconds: 30
+    processing-timeout-minutes: 10
+    cleanup-interval-minutes: 30
+    batch-size: 10
+    consumer-threads: 3
+
 ---
 spring:
   config:
@@ -84,7 +109,24 @@ spring:
       on-profile: docker
 
   datasource:
-    url: jdbc:postgresql://postgres:5432/triage_ai_sus
+    url: jdbc:postgresql://postgres:5432/postgres
+    username: postgres
+    password: postgres
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: redis123
+      timeout: 2000ms
+      database: 0
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
 ---
 spring:
@@ -96,3 +138,9 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6370
+      password: ""

@@ -32,7 +32,6 @@ public class SymptomsJsonConverter implements AttributeConverter<List<Symptom>, 
 
             return objectMapper.writeValueAsString(dtos);
         } catch (JsonProcessingException e) {
-            log.error("Erro ao serializar sintomas para JSON", e);
             throw new RuntimeException("Erro ao serializar sintomas", e);
         }
     }
@@ -51,7 +50,6 @@ public class SymptomsJsonConverter implements AttributeConverter<List<Symptom>, 
                     .map(this::fromDto)
                     .toList();
         } catch (JsonProcessingException e) {
-            log.error("Erro ao deserializar sintomas do JSON: {}", json, e);
             throw new RuntimeException("Erro ao deserializar sintomas", e);
         }
     }

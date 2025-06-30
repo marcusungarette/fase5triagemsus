@@ -26,8 +26,6 @@ public class FindTriageUseCase {
 
     @Transactional(readOnly = true)
     public Triage findById(String triageId) {
-        //log.debug("Buscando triagem por ID: {}", triageId);
-
         TriageId id = TriageId.of(triageId);
 
         return triageRepository.findById(id)
@@ -37,66 +35,52 @@ public class FindTriageUseCase {
 
     @Transactional(readOnly = true)
     public List<Triage> findByPatientId(String patientId) {
-        //log.debug("Buscando triagens do paciente: {}", patientId);
-
         PatientId id = PatientId.of(patientId);
         List<Triage> triages = triageRepository.findByPatientId(id);
 
-        //log.debug("Encontradas {} triagens para o paciente: {}", triages.size(), patientId);
         return triages;
     }
 
 
     @Transactional(readOnly = true)
     public List<Triage> findByPriority(PriorityLevel priority) {
-        //log.debug("Buscando triagens com prioridade: {}", priority);
-
         if (priority == null) {
             throw new IllegalArgumentException("Prioridade é obrigatória");
         }
-
         List<Triage> triages = triageRepository.findByPriority(priority);
-       // log.debug("Encontradas {} triagens com prioridade: {}", triages.size(), priority);
-
         return triages;
     }
 
 
     @Transactional(readOnly = true)
     public List<Triage> findCriticalTriages() {
-       // log.debug("Buscando triagens críticas");
-
         List<Triage> criticalTriages = triageRepository.findCriticalTriages();
-        //log.debug("Encontradas {} triagens críticas", criticalTriages.size());
-
         return criticalTriages;
     }
 
 
     @Transactional(readOnly = true)
     public List<Triage> findPendingTriages() {
-        //log.debug("Buscando triagens pendentes");
-
         List<Triage> pendingTriages = triageRepository.findPendingTriages();
-        //log.debug("Encontradas {} triagens pendentes", pendingTriages.size());
-
         return pendingTriages;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Triage> findPendingTriagesByStatus() {
+        List<Triage> pendingTriagesByStatus = triageRepository.findPendingTriagesByStatus();
+        return pendingTriagesByStatus;
     }
 
 
     @Transactional(readOnly = true)
     public List<Triage> findByDate(LocalDate date) {
-        //log.debug("Buscando triagens da data: {}", date);
-
         if (date == null) {
             throw new IllegalArgumentException("Data é obrigatória");
         }
 
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusNanos(1);
-
         List<Triage> triages = triageRepository.findByCreatedAtBetween(startOfDay, endOfDay);
-        //log.debug("Encontradas {} triagens na data: {}", triages.size(), date);
 
         return triages;
     }
@@ -104,8 +88,6 @@ public class FindTriageUseCase {
 
     @Transactional(readOnly = true)
     public List<Triage> findByPeriod(LocalDateTime start, LocalDateTime end) {
-        //log.debug("Buscando triagens entre {} e {}", start, end);
-
         if (start == null || end == null) {
             throw new IllegalArgumentException("Data de início e fim são obrigatórias");
         }
@@ -115,7 +97,6 @@ public class FindTriageUseCase {
         }
 
         List<Triage> triages = triageRepository.findByCreatedAtBetween(start, end);
-        //log.debug("Encontradas {} triagens no período", triages.size());
 
         return triages;
     }
@@ -123,8 +104,6 @@ public class FindTriageUseCase {
 
     @Transactional(readOnly = true)
     public TriageStatistics getStatisticsByDate(LocalDate date) {
-        //log.debug("Calculando estatísticas de triagens para a data: {}", date);
-
         List<Triage> triagesOfDay = findByDate(date);
 
         long emergency = triagesOfDay.stream()
@@ -162,6 +141,8 @@ public class FindTriageUseCase {
                 pending
         );
     }
+
+
 
 
     public record TriageStatistics(
